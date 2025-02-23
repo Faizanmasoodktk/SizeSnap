@@ -1,0 +1,364 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+	{% load static %}
+<meta charset="utf-8">
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="cache-control" content="max-age=604800" />
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<title>Image Editor</title>
+
+<link href="{% static "css/bootstrap.css" %}" rel="stylesheet"/>
+<link href="{% static "css/bootstrap.min.css" %}" rel="stylesheet"/>
+<script src="{% static "js/bootstrap.bundle.min.js" %}"></script>
+
+<!--Custom css files-->
+<link href="{% static "custom_css/header.css" %}" rel="stylesheet"/>
+<link href="{% static "custom_css/footer.css" %}" rel="stylesheet"/>
+<link href="{% static "custom_css/home.css" %}" rel="stylesheet"/>
+<link href="{% static "custom_css/processing_spinner.css" %}" rel="stylesheet"/>
+
+
+
+</head>
+<body>
+    <div class="col-lg-12 col-md-12 col-sm-12 d-flex flex-column min-vh-100">
+        <!-- Processing spinner-->
+        {% include 'include/processing_spinner.html'%}
+<!--    navbar-->
+    
+    {% include 'include/header.html'%}
+
+    {% block content %}
+    
+
+    <div class="container  flex-grow-1 border border-primary d-flex justify-content-center align-item-center p-2 mb-1">
+        <div class="m-auto border border-success border-dotted col-lg-6 col-md-6 offsets-6 p-5 d-flex flex-column">
+            <div id="messages"></div>
+            {% comment %} <div class="mb-3"><span>Drag or Drop file here, Or select manually</span></div> {% endcomment %}
+            <div class="mb-3"><span>Select Your file</span></div>
+            {% if message %}
+                <p class="alert alert-success alert-dismissible fade show" role="alert">{{message}}
+                    <button type="button" class="btn-close" data-bs-dismiss='alert' aria-label="Close"></button>
+                </P>
+            {% endif %}
+
+            <form id="upload-images" enctype="multipart/form-data">
+                {% csrf_token %}
+        <!-- ----------------------------Image Preview and upload section  --------------------- -->
+
+                <div class="image-drop-box border border-1 p-3 d-flex flex-column justify-content-center align-item-center mb-3">
+                    <div id="image-preview" class="d-flex flex-row flex-wrap mt-3"></div>
+
+                    <input name="images"  type="file" id="image-input" class="d-none" multiple accept="image/*" />
+                    <div id="drop-area" class="text-center">
+                        {% comment %} <p class="mb-2">Drag and Drop File here &nbsp;</p> {% endcomment %}
+                        <p class="mb-2">Select File here &nbsp;</p>
+                        <button type="button" class="btn btn-secondary">select Files</button>
+                    </div>
+                </div>
+        <!-- ----------------------------End of image preview and upload section --------------------- -->
+
+        <!-- ----------------------------This will show the images --------------------- -->
+                <div id="image-show" class="d-flex flex-row flex-wrap mt-3">
+                    {% if images %}
+                        {% for image in images %}
+                          <a href="data:{{image.type}};base64,{{image.data}}" download="{{image.name}}">
+
+                            <img src="data:{{image.type}};base64,{{image.data}}" alt="{{image.name}}" />
+                          </a>
+                            <!--To show the base64 encoded image we have to tell the browser what type of image
+                            it as, its format is "data:image/png;base64,faldsfjasldfajl" so here we first include the 
+                            image.type from image, and then encoded data of image -->
+                        {% endfor %}
+                    {% endif %}
+                </div>
+        <!-- ----------------------------End of Showing images --------------------- -->
+
+                <div class="mt-2 d-flex flex-row-reverse">
+                    <button type="button" onclick="sentImages()" class="btn btn-sm btn-primary btn-outline-warning float-end text-white ms-2">Remove Background</button>
+                    <button type="button" onclick="sentImagesForResize()" class="btn btn-sm btn-primary btn-outline-warning float-end text-white ms-2">Resize</button>
+                    <a type="button" href="{% url "clear-session"%}" class="btn btn-sm btn-primary btn-outline-warning float-end text-white ms-2 justify-content-center item-align-center"><span class="align-self-center">Clear<span></a>
+                    <a type="button" id="show-images-button" class="d-none" href="{% url "show-images"%}"  class="btn btn-sm btn-primary btn-outline-warning float-end text-white ms-2 ">Show Images</a>
+                </div>
+                
+                <div class="mt-2 p-2 d-flex flex-row justify-content-center item-align-center align-self-center border-dark">
+                    <div class="flex-grow-1">
+                        <div class="d-flex flex-row">
+                            <label for="width" class="col-form-label">Width</label>
+                            <input id='width' name="width" type="number" class="ms-3 form-control" />
+                        </div>
+                        <div class="d-flex flex-row mt-2">
+                            <label for="height" class="col-form-label">Height</label>
+                            <input id='height' name="height" type="number" class="ms-2 form-control" />
+                        </div>
+
+                    </div>
+                    {% comment %} <button type="button" onclick="sentForResizeImages()" class="btn btn-sm btn-primary btn-outline-warning float-end text-white ms-2
+                    flex-grow-0">Resize</button> {% endcomment %}
+                    <div class="d-flex flex-column flex-grow-1 align-items-center">
+                        <div clas="flex-grow-1"></div>
+                        <div class="d-flex flex-row flex-grow-1 ms-2 justify-content-center"> 
+                            <!-- Link/Unlink Toggle -->
+                            <button type="button" id="linkToggle" class="btn btn-sm btn-outline-secondary" style="height:40px;position:relative; top:20px;">🔗</button>
+
+                            <input type="text" class="form-control" id="size-type" name="size-type" value="px" style="height:40px;position:relative; top:20px;"  />
+
+                        </div>
+                        <div class="flex-grow-1"></div>
+                    </div>
+                    
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+    <script>
+        let spinning_processing = false
+        is_linked = true
+        
+        function toggle_spinning(){
+            spinning_processing = !spinning_processing
+            if(spinning_processing){
+                document.querySelector('.spinner-main-container').style.display = "flex";
+                
+            }else{
+                document.querySelector('.spinner-main-container').style.display = "none";
+            }
+        }
+
+
+        console.log('it come in script')
+        document.addEventListener('DOMContentLoaded', function(){
+            console.log('docuemt function run')
+
+            const dropArea = document.getElementById('drop-area')
+            const fileInput = document.getElementById('image-input')
+            const imagePreview = document.getElementById('image-preview')
+
+            dropArea.addEventListener('click', function(){
+                fileInput.click()
+            }) // when user click on button this will be call and in turn this will call fileInput which call handlefiles
+
+            fileInput.addEventListener('change', handlefiles) // this will call the handle file function when change occure in it
+            // mean when user select file so their is change in input feild it call handelfiles which fetch the file from event
+
+            dropArea.addEventListener("dragover", (event)=>{//when user drag over this area it will activate
+                console.log('it come in dragover')
+                event.preventDefault();
+                dropArea.classList.add('bg-light')
+            })
+
+            dropArea.addEventListener("dragleave", (event)=>{// when user remove drag it will deactivate and bg become normage
+                dropArea.classList.remove('bg-light')
+            })
+
+            dropArea.addEventListener("drop", (event)=>{ // catch the drop event
+                event.preventDefault(); // default behaviour of drag is to open file in browser it prevent from that
+                dropArea.classList.remove('bg-light')
+                const files = event.dataTransfer.files;
+                console.log(files) // pick all the files from drag, if more that will be list or one will be list
+                handlefiles({target: {files} })// as the files is now object and now then we send it to function as a parameter
+            })
+
+            function handlefiles(event){
+                console.log("it come in handle files")
+                const filess = event.target.files // so here we fetch the files list we send
+                console.log('These are files', event.target.files)
+
+                // imagePreview.innerHTML = ''; // empty the previous select images
+                console.log('files again')
+                console.log(typeof(filess))
+
+                for (const file of filess){// this is for....of loop mean for file in files
+                    if (file.type.startsWith('image/')){
+
+                        const reader = new FileReader(); // create a new filereader objects through which we can read file
+                        reader.onload = (e)=>{ // hadle the onload event asynchronusly, and when file loaded result pass to e
+
+                            const img = document.createElement('img') // create new image tag /element
+                            img.src = e.target.result
+                            imagePreview.appendChild(img) // append img to prieve image
+                        }
+                        reader.readAsDataURL(file) // read the file as data url
+                    }// end of if contion
+                }// end of for loop
+            }//end for handle file function 
+            
+            /* automatically fix height and width base on one*/
+            link_toggle = document.getElementById("linkToggle")
+            link_toggle.addEventListener("click", (event)=>{
+                event.preventDefault();
+                if(is_linked){
+                    link_toggle.innerText = "Link"
+                }else{
+                    link_toggle.innerText = "🔗"
+                }
+                is_linked = !is_linked
+                
+            })
+            
+
+            const width = document.getElementById('width')
+                width.addEventListener('change', (event)=>{
+                    if(is_linked){
+                            let height = document.getElementById('height')
+                            height.value = (width.value/4)*3
+                    }
+                })
+            
+            const height = document.getElementById('height')
+                height.addEventListener('change', (event)=>{
+                    if(is_linked){
+                        let width = document.getElementById('width')
+                        width.value = (height.value/3)*4
+                    }
+                })
+            // function for sending images
+            
+        })
+        // showing the message about process
+        function show_direct_message(message, timeout=5000){
+            box = document.getElementById("messages")
+
+            if (box.querySelector("p")){
+                box.querySelector("p").remove()
+            }
+
+            text = document.createElement("p")
+            text.className = "alert alert-success alert-dismissible fade show"
+            text.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `
+            box.appendChild(text)
+
+            // time for showing the message
+            setTimeout(() => {
+                text.remove()
+              }, timeout)
+            
+        }
+
+        // function for sending the images for remove Background
+        async function  sentImages(event){
+            console.log('Sending images')
+
+            const images = document.getElementById('image-input')
+            if(images.files.length === 0){
+                message = 'Please Select an image'
+                show_direct_message(message)
+            }// end of if block
+            else{
+                
+                const form = document.getElementById('upload-images')
+                console.log(form)
+                const formData = new FormData(form)
+                
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value
+                console.log([...formData.entries()])
+                try{
+                    toggle_spinning()// this will toggle the spinner
+                    const response = await fetch( "{% url 'process' %}", {
+                        method : 'POST',
+                        body : formData,
+                        headers : {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    });
+
+                if(response.ok){
+                    toggle_spinning() // this will toggle the spinner
+
+                    document.getElementById("show-images-button").click() // this will click on the shoe images button
+
+                    console.log('it came in if')
+
+                    message = "Images successfully uploaded"
+                    show_direct_message(message)
+                }else{
+                    toggle_spinning() // this will toggle the spinner
+                    console.log('it came in else')
+                    
+                    message = "There some error occured"
+                    show_direct_message(message)
+                }
+
+                }catch(error){
+                    toggle_spinning() // this will toggle the spinner
+                    message = "Sorry ! Some error occured"
+                    show_direct_message(message)
+                }
+            }// end of else block of checking the images
+
+        }/* End of sent images for remove Background*/
+
+       
+        async function sentImagesForResize(event){
+            console.log('sending images')
+            
+            const form = document.getElementById('upload-images')
+            const formData = new FormData(form)
+            let width = document.getElementById("width").value
+            let height = document.getElementById("height").value
+
+            /* check for height and widht */
+            if (width == 0 | height == 0){
+                message = "Please specify width and height"
+                show_direct_message(message)
+            }/*end of if block*/
+            else{
+                
+                const csrf_token = document.querySelector('[name=csrfmiddlewaretoken]').value
+                try{
+                    toggle_spinning() // this will toggle the spinner
+                    const response = await fetch( "{% url 'resize' %}", {
+                        method : 'POST',
+                        body : formData,
+                        headers :  { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                                    }
+                    }).then((response)=>{
+                        toggle_spinning() // this will toggle the spinner
+
+                        document.getElementById("show-images-button").click() // this will click on the shoe images button
+                        
+                        console.log(response)
+                        if(!response.message){
+                            message = `${response.statusText}`
+                            show_direct_message(message)
+                        }else{
+                            message = `${response.message}`
+                            show_direct_message(message)
+                        }
+                        
+                        box.appendChild(text)
+                    }).catch((error)=>{
+                        toggle_spinning() // this will toggle the spinner
+                        
+                        message = "Sorry Some error occured ! Please try again later"
+                        show_direct_message(message)
+                    })
+                    
+                }catch(error){
+                    toggle_spinning() // this will toggle the spinner
+                    
+                    message = "sorry! we are having some issue Please try again later"
+                    show_direct_message(message)
+                } /* end of catch */
+
+            }/*end of else block*/
+ 
+        } /* End of sent images for resize function*/
+    
+    </script>
+    {% endblock content %}
+
+<!--    footer-->
+    {% include 'include/footer.html'%}
+    
+    </div>
+</body>
+</html>

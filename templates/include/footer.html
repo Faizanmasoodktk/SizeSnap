@@ -1,0 +1,29 @@
+{% load static %}
+<footer class="footer footer-custom w-100">
+    <div class="container-fluid">
+        <div class="row">
+        <div class="col text-center">
+            <ul class="list-inline">
+            <li class="list-inline-item"><a href="{% url 'home'%}">Home</a></li>
+            <li class="list-inline-item"><a href="#" disable >Features</a></li>
+            <li class="list-inline-item"><a href="#" disable >Pricing</a></li>
+            <li class="list-inline-item"><a href="#">FAQs</a></li>
+            <li class="list-inline-item"><a href="#">About</a></li>
+            </ul>
+        </div>
+        </div>
+      <div class="row align-items-center">
+        <div class="col-md-6 d-flex align-items-center">
+          <img src="{% static "images/logo1.png" %}" alt="Logo" class="footer-logo">
+          <span class="footer-company">&copy; 2024 Company, Inc</span>
+        </div>
+        <div class="col-md-6 text-md-right d-flex justify-content-md-end">
+          <a href="#" class="footer-icon"><i class="fab fa-twitter"></i></a>
+          <a href="#" class="footer-icon"><i class="fab fa-instagram"></i></a>
+          <a href="#" class="footer-icon"><i class="fab fa-facebook-f"></i></a>
+        </div>
+      </div>
+      
+    </div>
+  </footer>
+  
